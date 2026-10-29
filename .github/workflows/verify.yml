@@ -1,0 +1,70 @@
+name: verify
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lean:
+    name: Lean build and axiom audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: solutions/00000000479/jiakeboge_submission_20261030002730/lean4
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache elan toolchains
+        uses: actions/cache@v4
+        with:
+          path: ~/.elan
+          key: elan-${{ runner.os }}-${{ hashFiles('**/lean-toolchain') }}
+
+      - name: Install elan
+        run: |
+          curl -sSfL https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Show pinned toolchain
+        run: |
+          echo "lean-toolchain: $(cat lean-toolchain)"
+          elan --version
+
+      - name: lake build
+        run: lake build
+
+      - name: Axiom audit
+        run: lake env lean Check.lean
+
+      - name: Fail on sorry or native_decide
+        run: |
+          if grep -rn --include='*.lean' -E '\bsorry\b|native_decide' . ; then
+            echo "::error::found sorry or native_decide"
+            exit 1
+          fi
+          echo "no sorry, no native_decide"
+
+  pdf:
+    name: LaTeX report
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: solutions/00000000479/jiakeboge_submission_20261030002730
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install TeX Live
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base texlive-latex-recommended texlive-latex-extra latexmk
+
+      - name: Build PDF
+        run: latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
+
+      - name: Upload PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-pdf
+          path: solutions/00000000479/jiakeboge_submission_20261030002730/main.pdf
