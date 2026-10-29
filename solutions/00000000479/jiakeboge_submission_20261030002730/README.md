@@ -71,11 +71,23 @@ so the reachable axiom set is contained in `{propext}` — well inside the
 `{propext, Classical.choice, Quot.sound}` envelope that accepted reviews in
 this repository allow, and with no `sorryAx`.
 
-The run above used a Lean 4.30.0 build; `lean-toolchain` pins
-`leanprover/lean4:v4.33.1` to match the rest of the repository. The file uses
-only `Init` core features (`List.filter`, `List.contains`, `List.flatMap`,
-`Int` arithmetic, `decide`), none of which changed between those versions, but
-the build should be replayed once with the pinned toolchain before merging.
+The run above used a Lean 4.30.0 build. The file was additionally checked
+against the pinned toolchain itself — `leanprover/lean4:v4.33.1` — through the
+LSP endpoint of the official Lean web editor
+(`wss://live.lean-lang.org/websocket/lean-v4.33.1`): the session initialises,
+`didOpen` is sent, and the server publishes **zero diagnostics** for the file,
+i.e. no errors and no warnings on v4.33.1.
+
+That channel was validated against two controls before being trusted:
+
+- a file with three deliberate mistakes produced three errors with correct line
+  numbers, and
+- appending `theorem bogus : (… filter …).length = 4` to this very file was
+  rejected at line 97 with `Tactic decide proved that the proposition
+  (List.filter (fun L => hcount L == 2) matchings2).length = 4 is false`,
+
+which also confirms that the kernel really evaluates the enumeration (the count
+is 3, not 4) rather than accepting it unexamined.
 
 ## Layout
 
